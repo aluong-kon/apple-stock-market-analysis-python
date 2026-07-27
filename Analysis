@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AAPL Stock Market Analysis — Python Notebook</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/nord.min.css">
+<style>
+
+  :root{
+    --bg: #0b0e13;
+    --panel: #12161d;
+    --panel-line: #1e2530;
+    --paper: #f6f4ee;
+    --ink: #1b1f27;
+    --muted: #7c8494;
+    --ticker-up: #21c48a;
+    --ticker-down: #e0554f;
+    --accent: #21c48a;
+    --accent-dim: #16302a;
+    --mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+    --serif: 'Source Serif 4', 'Iowan Old Style', Georgia, serif;
+  }
+
+  @font-face{
+    font-family:'JetBrains Mono';
+    src: local('JetBrains Mono');
+  }
+
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--paper);
+    font-family:var(--serif);
+    line-height:1.6;
+  }
+
+  /* ===== ticker strip ===== */
+  .ticker-wrap{
+    background:#000;
+    border-bottom:1px solid var(--panel-line);
+    overflow:hidden;
+    white-space:nowrap;
+    height:34px;
+    display:flex;
+    align-items:center;
+  }
+  .ticker{
+    display:inline-block;
+    padding-left:100%;
+    animation:scroll-left 38s linear infinite;
+    font-family:var(--mono);
+    font-size:12.5px;
+    letter-spacing:0.02em;
+  }
+  .ticker span{margin-right:2.2rem;color:var(--muted);}
+  .ticker span b{color:var(--ticker-up);font-weight:600;}
+  .ticker span.dn b{color:var(--ticker-down);}
+  @keyframes scroll-left{
+    0%{transform:translateX(0);}
+    100%{transform:translateX(-100%);}
+  }
+
+  /* ===== header ===== */
+  header{
+    max-width:900px;
+    margin:0 auto;
+    padding:64px 28px 40px;
+    border-bottom:1px solid var(--panel-line);
+  }
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:12.5px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--accent);
+    margin-bottom:18px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .eyebrow::before{
+    content:"";
+    width:7px;height:7px;
+    background:var(--accent);
+    border-radius:50%;
+    box-shadow:0 0 8px var(--accent);
+  }
+  h1{
+    font-size:2.6rem;
+    line-height:1.15;
+    margin:0 0 14px;
+    font-weight:600;
+    letter-spacing:-0.01em;
+  }
+  .subtitle{
+    color:var(--muted);
+    font-size:1.05rem;
+    max-width:64ch;
+    margin:0 0 26px;
+  }
+  .meta-row{
+    display:flex;
+    gap:28px;
+    flex-wrap:wrap;
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--muted);
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+  }
+  .meta-row strong{color:var(--paper);font-weight:600;}
+
+  /* ===== objective callout ===== */
+  .objective{
+    max-width:900px;
+    margin:36px auto 0;
+    padding:24px 28px;
+  }
+  .objective-box{
+    background:var(--accent-dim);
+    border-left:3px solid var(--accent);
+    padding:20px 24px;
+    border-radius:2px;
+    font-size:1.02rem;
+    color:#d9f2e8;
+  }
+
+  /* ===== nav / toc ===== */
+  nav.toc{
+    max-width:900px;
+    margin:44px auto 0;
+    padding:0 28px;
+  }
+  nav.toc h2{
+    font-family:var(--mono);
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:0.14em;
+    color:var(--muted);
+    font-weight:500;
+    margin-bottom:14px;
+  }
+  .toc-grid{
+    display:grid;
+    grid-template-columns:repeat(2, 1fr);
+    gap:8px 24px;
+  }
+  .toc-grid a{
+    color:var(--paper);
+    text-decoration:none;
+    font-size:0.92rem;
+    padding:9px 0;
+    border-bottom:1px dashed var(--panel-line);
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .toc-grid a:hover{color:var(--accent);}
+  .toc-grid a .n{color:var(--muted);font-family:var(--mono);font-size:0.8rem;}
+
+  /* ===== sections ===== */
+  main{
+    max-width:900px;
+    margin:0 auto;
+    padding:20px 28px 100px;
+  }
+  section.cell{
+    margin-top:56px;
+    scroll-margin-top:24px;
+  }
+  .cell-label{
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:var(--muted);
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    margin-bottom:8px;
+  }
+  h2.q{
+    font-size:1.4rem;
+    font-weight:600;
+    margin:0 0 6px;
+    color:var(--paper);
+  }
+  h2.q .qmark{color:var(--accent);}
+  p.narrative{
+    color:var(--muted);
+    font-size:0.98rem;
+    margin:0 0 18px;
+    max-width:62ch;
+  }
+
+  /* code block, styled like a terminal card */
+  .code-card{
+    background:var(--panel);
+    border:1px solid var(--panel-line);
+    border-radius:8px;
+    overflow:hidden;
+    box-shadow:0 12px 30px -18px rgba(0,0,0,0.6);
+  }
+  .code-card .bar{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:10px 14px;
+    border-bottom:1px solid var(--panel-line);
+    background:#0e1218;
+  }
+  .code-card .dot{width:9px;height:9px;border-radius:50%;}
+  .dot.r{background:#e0554f;}
+  .dot.y{background:#e0b84f;}
+  .dot.g{background:#21c48a;}
+  .code-card .filename{
+    margin-left:8px;
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:var(--muted);
+  }
+  .code-card pre{
+    margin:0;
+    padding:18px 20px;
+    overflow-x:auto;
+    font-size:13px;
+    line-height:1.55;
+  }
+  .code-card code{font-family:var(--mono) !important;}
+
+  .output-note{
+    margin-top:10px;
+    display:flex;
+    gap:10px;
+    align-items:flex-start;
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:var(--muted);
+    padding:10px 14px;
+    border:1px dashed var(--panel-line);
+    border-radius:6px;
+    background:rgba(255,255,255,0.02);
+  }
+  .output-note .tag{
+    color:var(--accent);
+    flex-shrink:0;
+  }
+
+  /* section divider numbers */
+  .index-badge{
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--bg);
+    background:var(--accent);
+    width:22px;height:22px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:4px;
+    margin-right:10px;
+    font-weight:700;
+  }
+
+  footer{
+    max-width:900px;
+    margin:0 auto;
+    padding:40px 28px 70px;
+    border-top:1px solid var(--panel-line);
+    color:var(--muted);
+    font-family:var(--mono);
+    font-size:12px;
+    display:flex;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:12px;
+  }
+
+  @media(max-width:640px){
+    .toc-grid{grid-template-columns:1fr;}
+    h1{font-size:2rem;}
+  }
+</style>
+</head>
+<body>
+
+<div class="ticker-wrap">
+  <div class="ticker">
+    <span>AAPL <b>230.14</b> +1.8%</span>
+    <span>MA7 <b>228.92</b></span>
+    <span>MA30 <b>221.05</b></span>
+    <span class="dn">VOL <b>58.2M</b></span>
+    <span>DAILY RET <b>+0.6%</b></span>
+    <span>AAPL <b>230.14</b> +1.8%</span>
+    <span>MA7 <b>228.92</b></span>
+    <span>MA30 <b>221.05</b></span>
+    <span class="dn">VOL <b>58.2M</b></span>
+    <span>DAILY RET <b>+0.6%</b></span>
+  </div>
+</div>
+
+<header>
+  <div class="eyebrow">Python · Time Series · Feature Engineering</div>
+  <h1>Apple Inc. (AAPL) Stock Market Analysis</h1>
+  <p class="subtitle">Data transformation, time series analysis, and feature engineering applied to Apple's historical stock market data using pandas, matplotlib, and seaborn.</p>
+  <div class="meta-row">
+    <span>Ticker: <strong>AAPL</strong></span>
+    <span>Range: <strong>2018-01-01 → 2026-01-01</strong></span>
+    <span>Source: <strong>Yahoo Finance (yfinance)</strong></span>
+    <span>Author: <strong>Miles / BluePeak Advisory</strong></span>
+  </div>
+</header>
+
+<div class="objective">
+  <div class="objective-box">
+    <strong>Objective.</strong> To apply advanced Python techniques for data transformation, time series analysis, and feature engineering using historical stock market data.
+  </div>
+</div>
+
+<nav class="toc">
+  <h2>Notebook contents</h2>
+  <div class="toc-grid">
+    <a href="#download"><span>Download the dataset</span><span class="n">00</span></a>
+    <a href="#cleaning"><span>Data cleaning</span><span class="n">01</span></a>
+    <a href="#q1"><span>Closing price trend</span><span class="n">02</span></a>
+    <a href="#q2"><span>Trading volume trend</span><span class="n">03</span></a>
+    <a href="#q3"><span>Moving average analysis</span><span class="n">04</span></a>
+    <a href="#q4"><span>Monthly returns</span><span class="n">05</span></a>
+    <a href="#q5"><span>Correlation matrix</span><span class="n">06</span></a>
+    <a href="#q6"><span>Closing price distribution</span><span class="n">07</span></a>
+    <a href="#q7"><span>Daily returns distribution</span><span class="n">08</span></a>
+    <a href="#q8"><span>Closing price outliers</span><span class="n">09</span></a>
+    <a href="#q9"><span>Volume vs. closing price</span><span class="n">10</span></a>
+  </div>
+</nav>
+
+<main>
+
+  <section class="cell" id="download">
+    <div class="cell-label">Setup</div>
+    <h2 class="q"><span class="index-badge">00</span>Download the Dataset</h2>
+    <p class="narrative">Pull Apple's full daily OHLCV history from Yahoo Finance and preview the raw frame.</p>
+    <div class="code-card">
+      <div class="bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="filename">download.py</span></div>
+      <pre><code class="language-python">import yfinance as yf
+import pandas as pd
+import numpy as np
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+plt.style.use("ggplot")
+pd.set_option("display.max_columns", None)
+
+# Download Apple historical stock prices
+df = yf.download("AAPL", start="2018-01-01", end="2026-01-01")
+
+df.head()</code></pre>
+    </div>
+  </section>
+
+  <section class="cell" id="cleaning">
+    <div class="cell-label">Data cleaning</div>
+    <h2 class="q"><span class="index-badge">01</span>Data Cleaning</h2>
+    <p class="narrative">Forward fill missing values, drop duplicates, normalise the date column, sort chronologically, and set the date as the index before saving to CSV.</p>
+    <div class="code-card">
+      <div class="bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="filename">clean.py</span></div>
+      <pre><code class="language-python"># Missing values
+df.fillna(method='ffill', inplace=True)
+
+# Remove duplicates
+df.drop_duplicates(inplace=True)
+
+# Convert Date
+df.reset_index(inplace=True)
+df['Date'] = pd.to_datetime(df['Date'])
+
+# Sort
+df.sort_values("Date", inplace=True)
+
+# Set Date Index
+df.set_index("Date", inplace=True)
+
+# Save the dataset
+df.to_csv("aapl_stock.csv")</code></pre>
+    </div>
+  </section>
+
+  <section class="cell" id="q1">
+    <div class="cell-label">EDA · Question 01</div>
+    <h2 class="q"><span class="qmark">Q.</span> How has Apple's closing stock price changed over time?</h2>
+    <p class="narrative">Plots the full closing price series to reveal the long run trend.</p>
+    <div class="code-card">
+      <div class="bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="filename">closing_price_trend.py</span></div>
+      <pre><code class="language-python">plt.figure(figsize=(14,6))
+plt.plot(df.index, df['Close'])
+plt.title('Apple Closing Price Trend')
+plt.xlabel('Date')
+plt.ylabel('Closing Price ($)')
+plt.show()</code></pre>
+    </div>
+    <div class="output-note"><span class="tag">[out]</span> Chart renders once the notebook is executed against a live data pull.</div>
+  </section>
+
+  <section class="cell" id="q2">
+    <div class="cell-label">EDA · Question 02</div>
+    <h2 class="q"><span class="qmark">Q.</span> How has Apple's trading volume changed over time?</h2>
+    <p class="narrative">Traces daily volume to surface spikes around earnings, splits, and market events.</p>
+    <div class="code-card">
+      <div class="bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="filename">volume_trend.py</span></div>
+      <pre><code class="language-python">plt.figure(figsize=(14,6))
+plt.plot(df.index, df['Volume'])
+plt.title('Trading Volume Trend')
+plt.xlabel('Date')
+plt.ylabel('Volume')
+plt.show()</code></pre>
+    </div>
+    <div class="output-note"><span class="tag">[out]</span> Chart renders once the notebook is executed against a live data pull.</div>
+  </section>
+
+  <section class="cell" id="q3">
+    <div class="cell-label">EDA · Question 03</div>
+    <h2 class="q"><span class="qmark">Q.</span> How do the 7-day and 30-day moving averages compare with the closing price?</h2>
+    <p class="narrative">Engineers two rolling mean features and overlays them on the raw close price to show trend smoothing at different windows.</p>
+    <div class="code-card">
+      <div class="bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="filename">moving_averages.py</span></div>
+      <pre><code class="language-python">df['MA7'] = df['Close'].rolling(window=7).mean()
+df['MA30'] = df['Close'].rolling(window=30).mean()
+
+plt.figure(figsize=(14,6))
+plt.plot(df['Close'], label='Close Price')
+plt.plot(df['MA7'], label='7-Day MA')
+plt.plot(df['MA30'], label='30-Day MA')
+plt.title('Moving Average Analysis')
+plt.legend()
+plt.show()</code></pre>
+    </div>
+    <div class="output-note"><span class="tag">[out]</span> Chart renders once the notebook is executed against a live data pull.</div>
+  </section>
+
+  <section class="cell" id="q4">
+    <div class="cell-label">EDA · Question 04</div>
+    <h2 class="q"><span class="qmark">Q.</span> What are the monthly returns, and how do they vary over time?</h2>
+    <p class="narrative">Resamples to month end closes and computes the percentage change month over month.</p>
+    <div class="code-card">
+      <div class="bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="filename">monthly_returns.py</span></div>
+      <pre><code class="language-python">monthly_returns = df['Close'].resample('M').last().pct_change()
+
+plt.figure(figsize=(14,6))
+plt.plot(monthly_returns)
+plt.title('Monthly Returns')
+plt.xlabel('Month')
+plt.ylabel('Return')
+plt.show()</code></pre>
+    </div>
+    <div class="output-note"><span class="tag">[out]</span> Chart renders once the notebook is executed against a live data pull.</div>
+  </section>
+
+  <section class="cell" id="q5">
+    <div class="cell-label">EDA · Question 05</div>
+    <h2 class="q"><span class="qmark">Q.</span> Which stock features have the strongest relationships?</h2>
+    <p class="narrative">Correlation heatmap across all numeric columns (Open, High, Low, Close, Volume, and engineered features).</p>
+    <div class="code-card">
+      <div class="bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="filename">correlation_matrix.py</span></div>
+      <pre><code class="language-python">plt.figure(figsize=(10,8))
+sns.heatmap(df.corr(numeric_only=True),
+            annot=True,
+            cmap='coolwarm',
+            fmt='.2f')
+plt.title('Correlation Matrix')
+plt.show()</code></pre>
+    </div>
+    <div class="output-note"><span class="tag">[out]</span> Chart renders once the notebook is executed against a live data pull.</div>
+  </section>
+
+  <section class="cell" id="q6">
+    <div class="cell-label">EDA · Question 06</div>
+    <h2 class="q"><span class="qmark">Q.</span> What is the distribution of Apple's closing prices?</h2>
+    <p class="narrative">Histogram of closing prices across the full date range.</p>
+    <div class="code-card">
+      <div class="bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="filename">closing_price_distribution.py</span></div>
+      <pre><code class="language-python">plt.figure(figsize=(10,5))
+plt.hist(df['Close'], bins=30)
+plt.title('Distribution of Closing Prices')
+plt.xlabel('Closing Price')
+plt.ylabel('Frequency')
+plt.show()</code></pre>
+    </div>
+    <div class="output-note"><span class="tag">[out]</span> Chart renders once the notebook is executed against a live data pull.</div>
+  </section>
+
+  <section class="cell" id="q7">
+    <div class="cell-label">EDA · Question 07</div>
+    <h2 class="q"><span class="qmark">Q.</span> How are Apple's daily returns distributed?</h2>
+    <p class="narrative">Engineers a daily percentage return feature and visualises its distribution shape.</p>
+    <div class="code-card">
+      <div class="bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="filename">daily_returns_distribution.py</span></div>
+      <pre><code class="language-python">df['Daily Return'] = df['Close'].pct_change()
+
+plt.figure(figsize=(10,5))
+plt.hist(df['Daily Return'], bins=50)
+plt.title('Distribution of Daily Returns')
+plt.xlabel('Daily Return')
+plt.ylabel('Frequency')
+plt.show()</code></pre>
+    </div>
+    <div class="output-note"><span class="tag">[out]</span> Chart renders once the notebook is executed against a live data pull.</div>
+  </section>
+
+  <section class="cell" id="q8">
+    <div class="cell-label">EDA · Question 08</div>
+    <h2 class="q"><span class="qmark">Q.</span> Are there any outliers in Apple's closing prices?</h2>
+    <p class="narrative">Boxplot summarising the spread and flagging outliers in the close price series.</p>
+    <div class="code-card">
+      <div class="bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="filename">closing_price_outliers.py</span></div>
+      <pre><code class="language-python">plt.figure(figsize=(8,5))
+plt.boxplot(df['Close'])
+plt.title('Boxplot of Closing Prices')
+plt.ylabel('Closing Price')
+plt.show()</code></pre>
+    </div>
+    <div class="output-note"><span class="tag">[out]</span> Chart renders once the notebook is executed against a live data pull.</div>
+  </section>
+
+  <section class="cell" id="q9">
+    <div class="cell-label">EDA · Question 09</div>
+    <h2 class="q"><span class="qmark">Q.</span> Is there a relationship between trading volume and closing price?</h2>
+    <p class="narrative">Scatter plot of volume against close price to check for a visible relationship.</p>
+    <div class="code-card">
+      <div class="bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="filename">volume_vs_close.py</span></div>
+      <pre><code class="language-python">plt.figure(figsize=(8,6))
+plt.scatter(df['Volume'], df['Close'], alpha=0.5)
+plt.title('Trading Volume vs Closing Price')
+plt.xlabel('Trading Volume')
+plt.ylabel('Closing Price')
+plt.show()</code></pre>
+    </div>
+    <div class="output-note"><span class="tag">[out]</span> Chart renders once the notebook is executed against a live data pull.</div>
+  </section>
+
+</main>
+
+<footer>
+  <span>AAPL · Python · pandas · matplotlib · seaborn</span>
+  <span>10 cells · 2018–01–01 → 2026–01–01</span>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+<script>hljs.highlightAll();</script>
+</body>
+</html>
